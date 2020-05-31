@@ -35,15 +35,37 @@
 #include "logging.h"
 #include "utils_gui.h"
 #include "custom_skin_enum.h"
-
 #ifdef __ANDROID__
 #include "CGUICustomComboBox/CGUICustomComboBox.h"
-#define ADDComboBox(...) (gGameConfig->native_mouse ? env->addComboBox(__VA_ARGS__): irr::gui::CGUICustomComboBox::addCustomComboBox(env, __VA_ARGS__))
-#define MATERIAL_GUARD(f) do {driver->enableMaterial2D(true); f; driver->enableMaterial2D(false);} while(false);
-#else
-#define ADDComboBox(...) env->addComboBox(__VA_ARGS__)
-#define MATERIAL_GUARD(f) do {f;} while(false);
 #endif
+
+template<class... Args>
+inline irr::gui::IGUIComboBox* AddComboBox(irr::gui::IGUIEnvironment* env, Args &&... args) {
+#ifdef __ANDROID__
+	return ygo::gGameConfig->native_mouse ? env->addComboBox(args...) : irr::gui::CGUICustomComboBox::addCustomComboBox(env, args...);
+#else
+	return env->addComboBox(args...);
+#endif // __ANDROID__
+}
+
+class MaterialGuard {
+private:
+	irr::video::IVideoDriver& driver;
+public:
+	bool shouldRun = true;
+	MaterialGuard(irr::video::IVideoDriver& driver) : driver(driver) {
+		driver.enableMaterial2D(true);
+	}
+	~MaterialGuard() {
+		driver.enableMaterial2D(false);
+	}
+};
+
+#ifdef __ANDROID__
+#define MATERIAL_GUARD_BLOCK for (MaterialGuard _(*driver); _.shouldRun; _.shouldRun = false)
+#else
+#define MATERIAL_GUARD_BLOCK if (true)
+#endif // __ANDROID
 
 unsigned short PRO_VERSION = 0x1351;
 
@@ -278,10 +300,10 @@ bool Game::Initialize() {
 	wCreateHost->setVisible(false);
 	tmpptr = env->addStaticText(gDataManager->GetSysString(1226).c_str(), Scale(20, 30, 220, 50), false, false, wCreateHost);
 	defaultStrings.emplace_back(tmpptr, 1226);
-	cbHostLFList = ADDComboBox(Scale(140, 25, 300, 50), wCreateHost, COMBOBOX_HOST_LFLIST);
+	cbHostLFList = AddComboBox(env, Scale(140, 25, 300, 50), wCreateHost, COMBOBOX_HOST_LFLIST);
 	tmpptr = env->addStaticText(gDataManager->GetSysString(1225).c_str(), Scale(20, 60, 220, 80), false, false, wCreateHost);
 	defaultStrings.emplace_back(tmpptr, 1225);
-	cbRule = ADDComboBox(Scale(140, 55, 300, 80), wCreateHost);
+	cbRule = AddComboBox(env, Scale(140, 55, 300, 80), wCreateHost);
 	ReloadCBRule();
 	cbRule->setSelected(gGameConfig->lastallowedcards);
 	tmpptr = env->addStaticText(gDataManager->GetSysString(1227).c_str(), Scale(20, 90, 220, 110), false, false, wCreateHost);
@@ -326,7 +348,7 @@ bool Game::Initialize() {
 	UpdateExtraRules(true);
 	tmpptr = env->addStaticText(gDataManager->GetSysString(1236).c_str(), Scale(20, 180, 220, 200), false, false, wCreateHost);
 	defaultStrings.emplace_back(tmpptr, 1236);
-	cbDuelRule = ADDComboBox(Scale(140, 175, 300, 200), wCreateHost, COMBOBOX_DUEL_RULE);
+	cbDuelRule = AddComboBox(env, Scale(140, 175, 300, 200), wCreateHost, COMBOBOX_DUEL_RULE);
 	duel_param = gGameConfig->lastDuelParam;
 	forbiddentypes = gGameConfig->lastDuelForbidden;
 	btnCustomRule = env->addButton(Scale(305, 175, 370, 200), wCreateHost, BUTTON_CUSTOM_RULE, gDataManager->GetSysString(1626).c_str());
@@ -454,7 +476,7 @@ bool Game::Initialize() {
 	defaultStrings.emplace_back(gBot.chkThrowRock, 2052);
 	gBot.chkMute = env->addCheckBox(gGameConfig->botMute, Scale(10, 135, 200, 160), gBot.window, -1, gDataManager->GetSysString(2053).c_str());
 	defaultStrings.emplace_back(gBot.chkMute, 2053);
-	gBot.cbBotDeck = ADDComboBox(Scale(10, 165, 200, 190), gBot.window, COMBOBOX_BOT_DECK);
+	gBot.cbBotDeck = AddComboBox(env, Scale(10, 165, 200, 190), gBot.window, COMBOBOX_BOT_DECK);
 	gBot.btnAdd = env->addButton(Scale(10, 200, 200, 225), gBot.window, BUTTON_BOT_ADD, gDataManager->GetSysString(2054).c_str());
 	defaultStrings.emplace_back(gBot.btnAdd, 2054);
 	btnHostPrepOB = env->addButton(Scale(10, 180, 110, 205), wHostPrepare, BUTTON_HP_OBSERVER, gDataManager->GetSysString(1252).c_str());
@@ -468,9 +490,9 @@ bool Game::Initialize() {
 	stHostPrepRule->setWordWrap(true);
 	stDeckSelect = env->addStaticText(gDataManager->GetSysString(1254).c_str(), Scale(10, 235, 110, 255), false, false, wHostPrepare);
 	defaultStrings.emplace_back(stDeckSelect, 1254);
-	cbDeckSelect = ADDComboBox(Scale(120, 230, 270, 255), wHostPrepare);
+	cbDeckSelect = AddComboBox(env, Scale(120, 230, 270, 255), wHostPrepare);
 	cbDeckSelect->setMaxSelectionRows(10);
-	cbDeckSelect2 = ADDComboBox(Scale(280, 230, 430, 255), wHostPrepare);
+	cbDeckSelect2 = AddComboBox(env, Scale(280, 230, 430, 255), wHostPrepare);
 	cbDeckSelect2->setMaxSelectionRows(10);
 	btnHostPrepReady = env->addButton(Scale(170, 180, 270, 205), wHostPrepare, BUTTON_HP_READY, gDataManager->GetSysString(1218).c_str());
 	defaultStrings.emplace_back(btnHostPrepReady, 1218);
@@ -664,14 +686,14 @@ bool Game::Initialize() {
 	defaultStrings.emplace_back(gSettings.chkFilterBot, 2069);
 	gSettings.stCurrentSkin = env->addStaticText(gDataManager->GetSysString(2064).c_str(), Scale(15, 275, 90, 300), false, true, sPanel);
 	defaultStrings.emplace_back(gSettings.stCurrentSkin, 2064);
-	gSettings.cbCurrentSkin = ADDComboBox(Scale(95, 275, 320, 300), sPanel, COMBOBOX_CURRENT_SKIN);
+	gSettings.cbCurrentSkin = AddComboBox(env, Scale(95, 275, 320, 300), sPanel, COMBOBOX_CURRENT_SKIN);
 	ReloadCBCurrentSkin();
 	gSettings.btnReloadSkin = env->addButton(Scale(15, 305, 320, 330), sPanel, BUTTON_RELOAD_SKIN, gDataManager->GetSysString(2066).c_str());
 	defaultStrings.emplace_back(gSettings.btnReloadSkin, 2066);
 	gSettings.stCurrentLocale = env->addStaticText(gDataManager->GetSysString(2067).c_str(), Scale(15, 335, 90, 360), false, true, sPanel);
 	defaultStrings.emplace_back(gSettings.stCurrentLocale, 2067);
 	PopulateLocales();
-	gSettings.cbCurrentLocale = ADDComboBox(Scale(95, 335, 320, 360), sPanel, COMBOBOX_CURRENT_LOCALE);
+	gSettings.cbCurrentLocale = AddComboBox(env, Scale(95, 335, 320, 360), sPanel, COMBOBOX_CURRENT_LOCALE);
 	int selectedLocale = gSettings.cbCurrentLocale->addItem(L"English");
 	for(auto& _locale : locales) {
 		auto& locale = _locale.first;
@@ -707,7 +729,7 @@ bool Game::Initialize() {
 #endif
 	gSettings.stCoreLogOutput = env->addStaticText(gDataManager->GetSysString(1998).c_str(), Scale(340, 125, 430, 150), false, true, sPanel);
 	defaultStrings.emplace_back(gSettings.stCoreLogOutput, 1998);
-	gSettings.cbCoreLogOutput = ADDComboBox(Scale(435, 125, 645, 150), sPanel, COMBOBOX_CORE_LOG_OUTPUT);
+	gSettings.cbCoreLogOutput = AddComboBox(env, Scale(435, 125, 645, 150), sPanel, COMBOBOX_CORE_LOG_OUTPUT);
 	ReloadCBCoreLogOutput();
 	gSettings.chkSaveHandTest = env->addCheckBox(gGameConfig->saveHandTest, Scale(340, 155, 645, 180), sPanel, CHECKBOX_SAVE_HAND_TEST_REPLAY, gDataManager->GetSysString(2077).c_str());
 	defaultStrings.emplace_back(gSettings.chkSaveHandTest, 2077);
@@ -902,7 +924,7 @@ bool Game::Initialize() {
 	wANNumber = env->addWindow(Scale(550, 200, 780, 295), false, L"");
 	wANNumber->getCloseButton()->setVisible(false);
 	wANNumber->setVisible(false);
-	cbANNumber =  ADDComboBox(Scale(40, 30, 190, 50), wANNumber, -1);
+	cbANNumber =  AddComboBox(env, Scale(40, 30, 190, 50), wANNumber, -1);
 	cbANNumber->setTextAlignment(irr::gui::EGUIA_CENTER, irr::gui::EGUIA_CENTER);
 	btnANNumberOK = env->addButton(Scale(80, 60, 150, 85), wANNumber, BUTTON_ANNUMBER_OK, gDataManager->GetSysString(1211).c_str());
 	defaultStrings.emplace_back(btnANNumberOK, 1211);
@@ -969,11 +991,11 @@ bool Game::Initialize() {
 	wDeckEdit->setVisible(false);
 	stBanlist = env->addStaticText(gDataManager->GetSysString(1300).c_str(), Scale(10, 9, 100, 29), false, false, wDeckEdit);
 	defaultStrings.emplace_back(stBanlist, 1300);
-	cbDBLFList = ADDComboBox(Scale(80, 5, 220, 30), wDeckEdit, COMBOBOX_DBLFLIST);
+	cbDBLFList = AddComboBox(env, Scale(80, 5, 220, 30), wDeckEdit, COMBOBOX_DBLFLIST);
 	cbDBLFList->setMaxSelectionRows(10);
 	stDeck = env->addStaticText(gDataManager->GetSysString(1301).c_str(), Scale(10, 39, 100, 59), false, false, wDeckEdit);
 	defaultStrings.emplace_back(stDeck, 1301);
-	cbDBDecks = ADDComboBox(Scale(80, 35, 220, 60), wDeckEdit, COMBOBOX_DBDECKS);
+	cbDBDecks = AddComboBox(env, Scale(80, 35, 220, 60), wDeckEdit, COMBOBOX_DBDECKS);
 	cbDBDecks->setMaxSelectionRows(15);
 
 	btnSaveDeck = env->addButton(Scale(225, 35, 290, 60), wDeckEdit, BUTTON_SAVE_DECK, gDataManager->GetSysString(1302).c_str());
@@ -1015,7 +1037,7 @@ bool Game::Initialize() {
 	scrFilter->setVisible(false);
 	//sort type
 	wSort = env->addStaticText(L"", Scale(930, 132, 1020, 156), true, false, 0, -1, true);
-	cbSortType = ADDComboBox(Scale(10, 2, 85, 22), wSort, COMBOBOX_SORTTYPE);
+	cbSortType = AddComboBox(env, Scale(10, 2, 85, 22), wSort, COMBOBOX_SORTTYPE);
 	cbSortType->setMaxSelectionRows(10);
 	ReloadCBSortType();
 	wSort->setVisible(false);
@@ -1024,25 +1046,25 @@ bool Game::Initialize() {
 	wFilter->setVisible(false);
 	stCategory = env->addStaticText(gDataManager->GetSysString(1311).c_str(), Scale(10, 5, 70, 25), false, false, wFilter);
 	defaultStrings.emplace_back(stCategory, 1311);
-	cbCardType = ADDComboBox(Scale(60, 3, 120, 23), wFilter, COMBOBOX_MAINTYPE);
+	cbCardType = AddComboBox(env, Scale(60, 3, 120, 23), wFilter, COMBOBOX_MAINTYPE);
 	ReloadCBCardType();
-	cbCardType2 = ADDComboBox(Scale(130, 3, 190, 23), wFilter, COMBOBOX_SECONDTYPE);
+	cbCardType2 = AddComboBox(env, Scale(130, 3, 190, 23), wFilter, COMBOBOX_SECONDTYPE);
 	cbCardType2->setMaxSelectionRows(20);
 	cbCardType2->addItem(gDataManager->GetSysString(1310).c_str(), 0);
 	chkAnime = env->addCheckBox(gGameConfig->chkAnime, Scale(10, 96, 150, 118), wFilter, CHECKBOX_SHOW_ANIME, gDataManager->GetSysString(1999).c_str());
 	defaultStrings.emplace_back(chkAnime, 1999);
 	stLimit = env->addStaticText(gDataManager->GetSysString(1315).c_str(), Scale(205, 5, 280, 25), false, false, wFilter);
 	defaultStrings.emplace_back(stLimit, 1315);
-	cbLimit = ADDComboBox(Scale(260, 3, 390, 23), wFilter, COMBOBOX_OTHER_FILT);
+	cbLimit = AddComboBox(env, Scale(260, 3, 390, 23), wFilter, COMBOBOX_OTHER_FILT);
 	cbLimit->setMaxSelectionRows(10);
 	ReloadCBLimit();
 	stAttribute = env->addStaticText(gDataManager->GetSysString(1319).c_str(), Scale(10, 28, 70, 48), false, false, wFilter);
 	defaultStrings.emplace_back(stAttribute, 1319);
-	cbAttribute = ADDComboBox(Scale(60, 26, 190, 46), wFilter, COMBOBOX_OTHER_FILT);
+	cbAttribute = AddComboBox(env, Scale(60, 26, 190, 46), wFilter, COMBOBOX_OTHER_FILT);
 	cbAttribute->setMaxSelectionRows(10);
 	ReloadCBAttribute();
 	stRace = env->addStaticText(gDataManager->GetSysString(1321).c_str(), Scale(10, 51, 70, 71), false, false, wFilter);
-	cbRace = ADDComboBox(Scale(60, 49, 190, 69), wFilter, COMBOBOX_OTHER_FILT);
+	cbRace = AddComboBox(env, Scale(60, 49, 190, 69), wFilter, COMBOBOX_OTHER_FILT);
 	cbRace->setMaxSelectionRows(10);
 	ReloadCBRace();
 	stAttack = env->addStaticText(gDataManager->GetSysString(1322).c_str(), Scale(205, 28, 280, 48), false, false, wFilter);
@@ -1259,7 +1281,7 @@ bool Game::Initialize() {
 	irr::gui::IGUIStaticText* statictext = env->addStaticText(gDataManager->GetSysString(2041).c_str(), Scale(10, 30, 110, 50), false, false, wRoomListPlaceholder, -1, false); // 2041 = Server:
 	defaultStrings.emplace_back(statictext, 2041);
 	statictext->setOverrideColor(roomlistcolor);
-	serverChoice = ADDComboBox(Scale(90, 25, 385, 50), wRoomListPlaceholder, SERVER_CHOICE);
+	serverChoice = AddComboBox(env, Scale(90, 25, 385, 50), wRoomListPlaceholder, SERVER_CHOICE);
 
 	//online nickname
 	statictext = env->addStaticText(gDataManager->GetSysString(1220).c_str(), Scale(10, 60, 110, 80), false, false, wRoomListPlaceholder, -1, false); // 1220 = Nickname:
@@ -1273,9 +1295,9 @@ bool Game::Initialize() {
 	btnCreateHost2->setAlignment(irr::gui::EGUIA_LOWERRIGHT, irr::gui::EGUIA_LOWERRIGHT, irr::gui::EGUIA_UPPERLEFT, irr::gui::EGUIA_UPPERLEFT);
 
 	//filter dropdowns
-	cbFilterRule = ADDComboBox(Scale(392, 25, 532, 50), wRoomListPlaceholder, CB_FILTER_ALLOWED_CARDS);
-	//cbFilterMatchMode = ADDComboBox(Scale(392, 55, 532, 80), wRoomListPlaceholder, CB_FILTER_MATCH_MODE);
-	cbFilterBanlist = ADDComboBox(Scale(392, 85, 532, 110), wRoomListPlaceholder, CB_FILTER_BANLIST);
+	cbFilterRule = AddComboBox(env, Scale(392, 25, 532, 50), wRoomListPlaceholder, CB_FILTER_ALLOWED_CARDS);
+	//cbFilterMatchMode = AddComboBox(env, Scale(392, 55, 532, 80), wRoomListPlaceholder, CB_FILTER_MATCH_MODE);
+	cbFilterBanlist = AddComboBox(env, Scale(392, 85, 532, 110), wRoomListPlaceholder, CB_FILTER_BANLIST);
 	cbFilterRule->setAlignment(irr::gui::EGUIA_CENTER, irr::gui::EGUIA_CENTER, irr::gui::EGUIA_UPPERLEFT, irr::gui::EGUIA_UPPERLEFT);
 	//cbFilterMatchMode->setAlignment(irr::gui::EGUIA_CENTER, irr::gui::EGUIA_CENTER, irr::gui::EGUIA_UPPERLEFT, irr::gui::EGUIA_UPPERLEFT);
 	cbFilterBanlist->setAlignment(irr::gui::EGUIA_CENTER, irr::gui::EGUIA_CENTER, irr::gui::EGUIA_UPPERLEFT, irr::gui::EGUIA_UPPERLEFT);
@@ -1630,14 +1652,15 @@ bool Game::MainLoop() {
 				gSoundManager->PlayBGM(SoundManager::BGM::ADVANTAGE, gGameConfig->loopMusic);
 			else
 				gSoundManager->PlayBGM(SoundManager::BGM::DUEL, gGameConfig->loopMusic);
-			MATERIAL_GUARD(
-			DrawBackImage(imageManager.tBackGround, resized);
-			DrawBackGround();
-			DrawCards();
-			DrawMisc();
-			smgr->drawAll();
-			driver->setMaterial(irr::video::IdentityMaterial);
-			driver->clearZBuffer();)
+			MATERIAL_GUARD_BLOCK{
+				DrawBackImage(imageManager.tBackGround, resized);
+				DrawBackGround();
+				DrawCards();
+				DrawMisc();
+				smgr->drawAll();
+				driver->setMaterial(irr::video::IdentityMaterial);
+				driver->clearZBuffer();
+			}
 		} else if(is_building) {
 
 			if(is_siding)
@@ -1646,7 +1669,9 @@ bool Game::MainLoop() {
 				discord.UpdatePresence(DiscordWrapper::DECK);
 			gSoundManager->PlayBGM(SoundManager::BGM::DECK, gGameConfig->loopMusic);
 			DrawBackImage(imageManager.tBackGround_deck, resized);
-			MATERIAL_GUARD(DrawDeckBd());
+			MATERIAL_GUARD_BLOCK{
+				DrawDeckBd();
+			}
 		} else {
 			if(dInfo.isInLobby)
 				discord.UpdatePresence(DiscordWrapper::IN_LOBBY);
@@ -1670,7 +1695,10 @@ bool Game::MainLoop() {
 			fpsCounter->setRelativePosition(Resize(1024 - fpsCounterWidth, 620, 1024, 640));
 		}
 		wBtnSettings->setVisible(!(is_building || is_siding || dInfo.isInDuel || open_file));
-		MATERIAL_GUARD(DrawGUI();	DrawSpec(););
+		MATERIAL_GUARD_BLOCK{
+			DrawGUI();
+			DrawSpec();
+		}
 		if(cardimagetextureloading) {
 			ShowCardInfo(showingcard);
 		}

@@ -3,7 +3,7 @@
 #endif
 
 #include "porting_android.h"
-
+#include <android_native_app_glue.h>
 #include <jni.h>
 #include <irrlicht.h>
 #include <sys/stat.h>
@@ -347,7 +347,7 @@ bool transformEvent(const irr::SEvent & event, bool& stopPropagation) {
 			stopPropagation = false;
 			return true;
 		}
-									
+
 		/*
 		* partial implementation from https://github.com/minetest/minetest/blob/02a23892f94d3c83a6bdc301defc0e7ade7e1c2b/src/gui/modalMenu.cpp#L116
 		* with this patch applied to the engine https://github.com/minetest/minetest/blob/02a23892f94d3c83a6bdc301defc0e7ade7e1c2b/build/android/patches/irrlicht-touchcount.patch

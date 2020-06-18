@@ -582,7 +582,7 @@ void GenericDuel::TPResult(DuelPlayer* dp, unsigned char tp) {
 	replay_stream.clear();
 	time_limit[0] = host_info.time_limit;
 	time_limit[1] = host_info.time_limit;
-	int opt = host_info.duel_flag;
+	int opt = DUEL_MODE_GOAT;
 	if(host_info.no_shuffle_deck)
 		opt |= DUEL_PSEUDO_SHUFFLE;
 	OCG_Player team = { static_cast<int>(host_info.start_lp), host_info.start_hand, host_info.draw_count };
